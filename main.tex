@@ -26,10 +26,6 @@ The growing push for decarbonization has lead to exploring better balances of en
 
 Of the challenges faced for lithium-sulfur batteries, polysulfide shuttling is affected by both design and operation parameters and is a far-reaching problem. Due to this, much of the current research on lithium-sulfur batteries is focused on either preventing the dissolution of the intermediate products into the electrolyte or preventing their migration to the anode \cite{CHEN20201605, liu2016, cheng2019, pang2015}. Polysulfide shuttling occurs when soluble intermediate species that form during discharge of the battery move between the anode and the cathode \cite{C5EE01388G}. At the anode these intermediate order polysulfides (Li$_2$S$_x$) can react and be further reduced. If low order polysulfides (x $<$ 3) are formed isolated from the electronically conductive carbon network of the cathode, they become lost active material and result in capacity fade of the battery. There are concurrent efforts to reduce the electrolyte/sulfur ratio to maximize the battery’s gravimetric energy density. However, for any of these strategies, it is critical to understand and control the intermediate species concentrations in the electrolyte, both to optimize performance and to minimize capacity fade due to precipitation of species which exceed their solubility limits. The solubility of intermediate products varies slightly with the electrolyte used, but they trend downward as the polysulfide order decreases.
 
-This paper builds on previous modeling efforts, starting with the 1-D model developed by Kumaresan \textit{et al} \cite{Kumaresan_2008}. Other models have followed to look at things such as transport limitations \cite{ZHANG2016502}, impedance spectra \cite{FRONCZEK2013183}, polysulfide shuttling and capacity loss \cite{HOFMANN2014300}, and nucleation and growth mechanisms in lithium sulfur cells \cite{REN2016115}. The standard reaction mechanism for these models is a linear chain of reactions proceeding from S$_8$ to Li$_2$S with no side reactions, disproportionation, or association reactions. The model presented here will start from this type of linear reaction mechanism while incorporating physically derived parameters to capture the evolution of the cathode morphology throughout the discharge and charge processes. Then the model will further implement reaction mechanisms derived from studies that use DFT and quantum chemical calculations to obtain reaction and species thermodynamics as well as theoretical reduction potentials of species \cite{assary2014, kuzmina2019}. The model is built in such a manner to allow for flexible use of various electrochemical mechanisms with the same physical model of the lithium-sulfur cell. Thus, mechanisms of varying complexity can be compared directly with relative ease. In addition to a comparison of mechanisms, the model will be used to explore other aspects of lithium-sulfur batteries, such as electrolyte/sulfur ratio, cathode porosity, and energy versus power density with solubility considerations.
-
-
-
 
 %===============================================================%
 %                       BACKGROUND
@@ -37,6 +33,8 @@ This paper builds on previous modeling efforts, starting with the 1-D model deve
 \section{Background}
 
 (Discuss problems we are trying to solve/understand, previous modeling efforts/literature review, and availability of validation data).
+
+This paper builds on previous modeling efforts, starting with the 1-D model developed by Kumaresan \textit{et al} \cite{Kumaresan_2008}. Other models have followed to look at things such as transport limitations \cite{ZHANG2016502}, impedance spectra \cite{FRONCZEK2013183}, polysulfide shuttling and capacity loss \cite{HOFMANN2014300}, and nucleation and growth mechanisms in lithium sulfur cells \cite{REN2016115}. The standard reaction mechanism for these models is a linear chain of reactions proceeding from S$_8$ to Li$_2$S with no side reactions, disproportionation, or association reactions. The model presented here will start from this type of linear reaction mechanism while incorporating physically derived parameters to capture the evolution of the cathode morphology throughout the discharge and charge processes. Then the model will further implement reaction mechanisms derived from studies that use DFT and quantum chemical calculations to obtain reaction and species thermodynamics as well as theoretical reduction potentials of species \cite{assary2014, kuzmina2019}. The model is built in such a manner to allow for flexible use of various electrochemical mechanisms with the same physical model of the lithium-sulfur cell. Thus, mechanisms of varying complexity can be compared directly with relative ease. In addition to a comparison of mechanisms, the model will be used to explore other aspects of lithium-sulfur batteries, such as electrolyte/sulfur ratio and energy versus power density with solubility considerations.
 
 
 
@@ -46,16 +44,117 @@ This paper builds on previous modeling efforts, starting with the 1-D model deve
 %===============================================================%
 
 \section{Model Formulation}
-The model presented herein is written as a set physically-derived conservation equations, discretized in one dimension using a finite volume approach, and integrated as a function of time during galvanostatic discharge and charge of the single-cell battery.  The model equations implement conservation of mass, elements, and charge, and taken together constitute a set of differential algebraic equations.  The model is written in python, using the software package Assimulo \cite{assimulo} to integrate the DAE set, and using \textsc{Cantera} \cite{cantera} to calculate and manage species and phase thermochemical calculations. In this section, we present the model formulation, including relevant conservation equations, boundary and initial conditions, and model parameters, including thermo-kinetic mechanism properties and microstructural geometric parmeters.
+The model presented herein is written as a set physically-derived conservation equations, discretized in one dimension using a finite volume approach, and integrated as a function of time during galvanostatic discharge and charge of the single-cell battery.  The model equations implement conservation of mass, elements, and charge, and taken together constitute a set of differential algebraic equations.  The model is written in python, using the software package Assimulo \cite{assimulo} to integrate the DAE set, and using \textsc{Cantera} \cite{cantera} to calculate and manage species and phase thermochemical calculations. In this section, we present the model formulation, including relevant conservation equations, boundary and initial conditions, and model parameters, including thermo-kinetic mechanism properties and microstructural geometric parameters.
+
+%---------------------------------------
+% TABLE OF LITHIATED AND NON-LITHIATED PARAMETERS
+%---------------------------------------
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ ccc } 
+ \hline\hline
+ Lithiated reactions & Non-lithiated reactions & Forward rate constant \\ 
+ \hline
+ \multicolumn{1}{l}{Sulfur/electrolyte interface} & &   \\
+ $\mathrm{S}_8(\mathrm{s}) \rightleftharpoons \mathrm{S}_8(\mathrm{e})$ & $\mathrm{S}_8(\mathrm{s}) \rightleftharpoons \mathrm{S}_8(\mathrm{e})$ & $1.0 \times 10^{-7}$/$1.0 \times 10^{-7} ~ \mathrm{kmol} ~ \mathrm{m}^{-2} ~ \mathrm{s}^{-1}$ \\ 
+ \hline
+ \multicolumn{1}{l}{Carbon/electrolyte interface} & &  \\
+ $\frac{1}{2} ~ \mathrm{S}_8(\mathrm{e}) + \mathrm{Li}^+ + \mathrm{e}^- \rightleftharpoons \frac{1}{2} ~ \mathrm{Li}_2\mathrm{S}_8$ & $\frac{1}{2} ~ \mathrm{S}_8(\mathrm{e}) + \mathrm{e}^- \rightleftharpoons \frac{1}{2} ~ \mathrm{S}_8^{2-}$ & $1.0 \times 10^{14}$/$4.7 \times 10^{9} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$   \\
+ $\frac{3}{2} ~ \mathrm{Li}_2\mathrm{S}_8 + \mathrm{Li}^+ + \mathrm{e}^- \rightleftharpoons 2 ~ \mathrm{Li}_2\mathrm{S}_6$ & $\frac{3}{2} ~ \mathrm{S}_8^{2-} + \mathrm{e}^- \rightleftharpoons 2 ~ \mathrm{S}_6^{2-}$ & $8.0 \times 10^{16}$/$1.0 \times 10^{12} ~ \mathrm{kmol}^{-0.5} ~ \mathrm{m}^{2.5} ~ \mathrm{s}^{-1}$  \\
+ $\mathrm{Li}_2\mathrm{S}_6 + \mathrm{Li}^+ + \mathrm{e}^- \rightleftharpoons \frac{3}{2} ~ \mathrm{Li}_2\mathrm{S}_4$ & $\mathrm{S}_6^{2-} + \mathrm{e}^- \rightleftharpoons \frac{3}{2} ~ \mathrm{S}_4^{2-}$ & $1.0 \times 10^{14}$/$6.0 \times 10^{10} ~ \mathrm{m}^{1} ~ \mathrm{s}^{-1}$  \\
+ $\frac{1}{2} ~ \mathrm{Li}_2\mathrm{S}_4 + \mathrm{Li}^+ + \mathrm{e}^- \rightleftharpoons  \mathrm{Li}_2\mathrm{S}_2$ & $\frac{1}{2} ~ \mathrm{S}_4^{2-} + \mathrm{e}^- \rightleftharpoons \mathrm{S}_2^{2-}$ & $1.0 \times 10^{11}$/$5.0 \times 10^{6} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$  \\
+ $\frac{1}{2} ~ \mathrm{Li}_2\mathrm{S}_2 + \mathrm{Li}^+ + \mathrm{e}^- \rightleftharpoons  \mathrm{Li}_2\mathrm{S}(\mathrm{e})$ & $\frac{1}{2} ~ \mathrm{S}_2^{2-} + \mathrm{e}^- \rightleftharpoons \mathrm{S}^{2-}$ & $1.0 \times 10^{11}$/$5.0 \times 10^{6} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$  \\
+ \hline
+ \multicolumn{1}{l}{Li$_2$S(s)/electrolyte interface} & &  \\
+ $\mathrm{Li}_2\mathrm{S}(\mathrm{e}) \rightleftharpoons \mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & $2 ~ \mathrm{Li}^+ + \mathrm{S}^{2-} \rightleftharpoons \mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & $5.75 \times 10^{11}$/$5.75 \times 10^{10} ~ \mathrm{kmol}^{-2} ~ \mathrm{m}^{7} ~ \mathrm{s}^{-1}$  \\
+ \hline
+ \multicolumn{1}{l}{Li(s)/electrolyte interface} & &  \\
+ $\mathrm{Li}(\mathrm{s}) \rightleftharpoons \mathrm{Li}^+ + \mathrm{e}^-$ & $\mathrm{Li}(\mathrm{s}) \rightleftharpoons \mathrm{Li}^+ + \mathrm{e}^-$ & $6.0 \times 10^{-3}$/$6.0 \times 10^{-2} ~ \mathrm{kmol} ~ \mathrm{m}^{-2} ~ \mathrm{s}^{-1}$  \\
+ \hline\hline
+ \end{tabular}
+ \begin{tabular}{ccccc}
+ Species & $\mathrm{h}_0 ~ \mathrm{kJ} ~ \mathrm{mol}^{-1}$ & $\mathrm{s}_0 ~ \mathrm{kJ} ~ \mathrm{mol}^{-1} ~ \mathrm{K}^{-1}$ & $\mathrm{D}^\mathrm{o}_k ~ \mathrm{m}^2 ~ \mathrm{s}^{-1}$ & $\mathrm{C}_{k,0} ~ \mathrm{kmol} ~ \mathrm{m}^{-3}$ \\
+ \hline
+ $\mathrm{S}_8(\mathrm{s})$ & 0.0 & 0.0 &  &  \\
+ $\mathrm{S}_8(\mathrm{e})$ & 16.1 & 0.0 & $1 \times 10^{-11}$ & $1.943 \times 10^{-2}$ \\
+ $\mathrm{Li}_2\mathrm{S}_8$/$\mathrm{S}_8^{2-}$ & -442.0/-342.0 & 0.0/0.0 & $6 \times 10^{-11}$ & $1.821 \times 10^{-4}$ \\
+ $\mathrm{Li}_2\mathrm{S}_6$/$\mathrm{S}_6^{2-}$ & -439.5/-339.5 & 0.0/0.0 & $6 \times 10^{-11}$ & $3.314 \times 10^{-6}$ \\
+ $\mathrm{Li}_2\mathrm{S}_4$/$\mathrm{S}_4^{2-}$ & -431.5/-331.5 & 0.0/0.0 & $1 \times 10^{-10}$ & $2.046 \times 10^{-6}$ \\
+ $\mathrm{Li}_2\mathrm{S}_2$/$\mathrm{S}_2^{2-}$ & -414.0/-314.0 & 0.0/0.0 & $1 \times 10^{-10}$ & $2.046 \times 10^{-6}$ \\
+ $\mathrm{Li}_2\mathrm{S}(\mathrm{e})$/$\mathrm{S}^{2-}$ & -322.5/-264.5 & 0.0/0.0 & $1 \times 10^{-10}$ & $5.348 \times 10^{-6}$ \\
+ $\mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & -569.5/-429.0 & 0.0/0.0 & &  \\
+ $\mathrm{Li}(\mathrm{s})$ & 0.0 & 0.0 & &  \\
+ $\mathrm{Li}^+$ & -50.0 & 0.0 & $1 \times 10^{-10}$ & $1.024$ \\
+ $\mathrm{TFSI}^-$ & 0.0 & 0.0 & $4 \times 10^{-10}$ & $1.024$/$1.0236$ \\
+ $\mathrm{TEGDME}$ & 0.0 & 0.0 & $1 \times 10^{-12}$ & $1.023 \times 10^{1}$ \\
+ \hline\hline
+\end{tabular}
+\caption{Kinetic and thermodynamic parameters of lithiated and non-lithiated mechanisms in this work}
+\label{cascadekineticsandthermo}
+\end{center}
+\end{table}
+
+%---------------------------------------
+% TABLE OF ASSARY AND KUZMINA PARAMETERS
+%---------------------------------------
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ cccc } 
+ \hline\hline
+ Reactions & Assary & Kuz'mina & Forward rate constant \\ 
+ \hline
+ \multicolumn{1}{l}{Sulfur/electrolyte interface} & & &   \\
+ $\mathrm{S}_8(\mathrm{s}) \rightleftharpoons \mathrm{S}_8(\mathrm{e})$ & \checkmark & \checkmark & $1.0 \times 10^{-6}$/$1.0 \times 10^{-4} ~ \mathrm{kmol} ~ \mathrm{m}^{-2} ~ \mathrm{s}^{-1}$ \\ 
+ \hline
+ \multicolumn{1}{l}{Carbon/electrolyte interface} & & &  \\
+ $\mathrm{S}_8(\mathrm{e}) + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons \mathrm{Li}_2\mathrm{S}_8$ & \checkmark & \checkmark & $1.0 \times 10^{13}$/$1.0 \times 10^{13} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$   \\
+ $\mathrm{Li}_2\mathrm{S}_8 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons  \mathrm{Li}_2\mathrm{S}_6 + \mathrm{Li}_2\mathrm{S}_2$ & \checkmark & \checkmark & $1.0 \times 10^{11}$/$2.0 \times 10^{11} ~ \mathrm{kmol}^{-0.5} ~ \mathrm{m}^{2.5} ~ \mathrm{s}^{-1}$  \\
+ $\mathrm{Li}_2\mathrm{S}_6 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons \mathrm{Li}_2\mathrm{S}_4 + \mathrm{Li}_2\mathrm{S}_2$ & \checkmark & \checkmark & $1.0 \times 10^{8}$/$5.0 \times 10^{7} ~ \mathrm{m}^{1} ~ \mathrm{s}^{-1}$  \\
+ $\mathrm{Li}_2\mathrm{S}_8 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons  2 ~ \mathrm{Li}_2\mathrm{S}_4$ & \checkmark & \checkmark & $1.0 \times 10^{7}$/$1.0 \times 10^{7} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$  \\
+ \hline
+ \multicolumn{1}{l}{Li$_2$S(s)/carbon/electrolyte boundary} & & & \\
+ $\mathrm{Li}_2\mathrm{S}_4 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons  \mathrm{Li}_2\mathrm{S}_3 + \mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & \checkmark & \checkmark & $1.0 \times 10^{7}$/$1.0 \times 10^{7} ~ \mathrm{kmol}^{0.5} ~ \mathrm{m}^{-0.5} ~ \mathrm{s}^{-1}$  \\
+ $\mathrm{Li}_2\mathrm{S}_3 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons \mathrm{Li}_2\mathrm{S}_2 + \mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & & \checkmark & $1.0 \times 10^{7}$ \\
+ $\mathrm{Li}_2\mathrm{S}_2 + 2 ~ \mathrm{Li}^+ + 2 ~ \mathrm{e}^- \rightleftharpoons 2 ~ \mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & & \checkmark & $1.0 \times 10^{3}$ \\
+ \hline
+ \multicolumn{1}{l}{Li$_2$S(s)/electrolyte interface} & & &  \\
+ $ 2 ~ \mathrm{Li}_2\mathrm{S}_3 \rightarrow \mathrm{Li}_2\mathrm{S}_2 + \frac{1}{4} ~ \mathrm{S}_8(\mathrm{e})$ & \checkmark & & $1.0 \times 10^{-2}$ $\mathrm{kmol}^{-2} ~ \mathrm{m}^{7} ~ \mathrm{s}^{-1}$  \\
+ $\mathrm{Li}_2\mathrm{S}_2 \rightarrow 2 ~ \mathrm{Li}_2\mathrm{S}(\mathrm{s}) + \frac{1}{4} ~ \mathrm{S}_8(\mathrm{e})$ & \checkmark & & $1.0 \times 10^{-5}$ \\
+ \hline
+ \multicolumn{1}{l}{Li(s)/electrolyte interface} & & &  \\
+ $\mathrm{Li}(\mathrm{s}) \rightleftharpoons \mathrm{Li}^+ + \mathrm{e}^-$ & \checkmark & \checkmark & $1.0 \times 10^{3}$/$1.0 \times 10^{3} ~ \mathrm{kmol} ~ \mathrm{m}^{-2} ~ \mathrm{s}^{-1}$  \\
+ \hline\hline
+ \end{tabular}
+ \begin{tabular}{ccccc}
+ Species & $\mathrm{h}_0 ~ \mathrm{kJ} ~ \mathrm{mol}^{-1}$ & $\mathrm{s}_0 ~ \mathrm{kJ} ~ \mathrm{mol}^{-1} ~ \mathrm{K}^{-1}$ & $\mathrm{D}^\mathrm{o}_k ~ \mathrm{m}^2 ~ \mathrm{s}^{-1}$ & $\mathrm{C}_{k,0} ~ \mathrm{kmol} ~ \mathrm{m}^{-3}$ \\
+ \hline
+ $\mathrm{S}_8(\mathrm{s})$ & 0.0 & 0.0 & &  \\
+ $\mathrm{S}_8(\mathrm{e})$ & 16.1 & 0.0 & $1 \times 10^{-11}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}_8$ & -1403.7/-1040.9 & -142.5/-142.5 & $6 \times 10^{-11}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}_6$ & -1317.7/-1032.7 & -3.8/-117.0 & $6 \times 10^{-11}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}_4$ & -1341.9/-1030.5 & -95.8/-95.8 & $1 \times 10^{-10}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}_3$ & -1098.5/-1103.3 & 75.4/-93.8 & $1 \times 10^{-10}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}_2$ & -1082.2/-1034.2 & 25.8/-85.0 & $1 \times 10^{-10}$ &  \\
+ $\mathrm{Li}_2\mathrm{S}(\mathrm{s})$ & -1025.1/-929.1 & -26.1/-81.0 & &  \\
+ $\mathrm{Li}(\mathrm{s})$ & 0.0 & 0.0 & &  \\
+ $\mathrm{Li}^+$ & -278.0 & 13.4 & $1 \times 10^{-10}$ &  \\
+ $\mathrm{TFSI}^-$ & 0.0 & 0.0 & $4 \times 10^{-10}$ &  \\
+ $\mathrm{TEGDME}$ & 0.0 & 0.0 & $1 \times 10^{-12}$ &  \\
+ \hline\hline
+\end{tabular}
+\caption{Kinetic and thermodynamic parameters of mechanisms based on Assary \textit{et al} \cite{assary2014} and Kuz'mina \textit{et al} \cite{kuzmina2019}}
+\label{atomistickineticsandthermo}
+\end{center}
+\end{table}
 
 \subsection{Model Domain}
 
-In lithium-sulfur batteries, the cathode is composed of a conductive host material, typically carbon based, in which the sulfur is infiltrated by melt infiltration or chemical vapor deposition \cite{BRUCKNER201482}. The model presented here will represent the cathode domain as a series of representative carbon particles with some surface area on which representative hemispherical particles of the solid products that form during dis/charge as shown in Fig. \ref{fig:modeldomain}. The model currently models three solid phases in the cathode: carbon, sulfur, and lithium sulfide. Due to the significant volumetric expansion that occurs during discharge of these batteries, the pore space will change as well. Currently, the model assumes the total cell volume remains constant through dis/charge. This requires the effect on species concentration in the electrolyte to be accounted for in the conservation equations. During discharge, the solid sulfur dissolves into the electrolyte where it can be reduced at the carbon/electrolyte interface to form lithium polysulfides. These polysulfides can be further reduced at the carbon/electrolyte interface or the lithiumsulfide/carbon/electrolyte three phase boundary (tpb) once the lithium sulfide begins to form. The anode is treated as an ideal lithium metal anode that acts as the reservoir for Li+ in the cell. At the current collector for both electrodes, a constant current boundary condition is imposed during discharge and charge. 
+In lithium-sulfur batteries, the cathode is composed of a conductive host material, typically carbon based, in which the sulfur is infiltrated by melt infiltration or chemical vapor deposition \cite{BRUCKNER201482}. The model presented here will represent the cathode domain as a series of representative carbon particles with some surface area on which representative hemispherical particles of the solid products that form during dis/charge as shown in Fig. \ref{fig:modeldomain}. The model currently models three solid phases in the cathode: carbon, sulfur, and lithium sulfide. Due to the significant volumetric expansion that occurs during discharge of these batteries, the pore space will change as well. Currently, the model assumes the total cell volume remains constant through dis/charge. This requires the effect on species concentration in the electrolyte to be accounted for in the conservation equations. During discharge, the solid sulfur dissolves into the electrolyte where it can be reduced at the carbon/electrolyte interface to form lithium polysulfides. These polysulfides can be further reduced at the carbon/electrolyte interface or the lithiumsulfide/carbon/electrolyte three phase boundary (tpb) once the lithium sulfide begins to form. The anode is treated as an ideal lithium metal anode that acts as the reservoir for $\mathrm{Li}^+$ in the cell. At the current collector for both electrodes, a constant current boundary condition is imposed during discharge and charge. 
 
 \begin{center}
 \begin{figure}
     \centering
-    \includegraphics[width=\textwidth]{model_domain.png}
+    \includegraphics[width=\textwidth]{Figure1_Simulation_Domain.png}
     \caption{Caption}
     \label{fig:modeldomain}
 \end{figure}
@@ -92,7 +191,7 @@ For the cathode solid-phase end states--solid sulfur S$_8$ in the charged state 
 \begin{equation}\label{eq:dEps_dt}
     \frac{\partial \varepsilon_m}{\partial t} = a_m\sum_{k,\,m} \overline{v}_k\dot{s}_k,
 \end{equation}
-where $\overline{v}_k$ is the constant molar volume (m$^3$ kmol$^{-1}$, equal to the molar mass divided by the mass density) and $\dot{s}_k$ the molar production rate due to heterogeneous surface reactions (kmol$_k$ m$^{-2}$ s$^{-1}$) for species $k$, summed over all $k$ species in phase $m$.  The parameter $a_m$ is the volume-specific area of the reactio interface between the phase $m$ and the electrolyte.
+where $\overline{v}_k$ is the constant molar volume (m$^3$ kmol$^{-1}$, equal to the molar mass divided by the mass density) and $\dot{s}_k$ the molar production rate due to heterogeneous surface reactions (kmol$_k$ m$^{-2}$ s$^{-1}$) for species $k$, summed over all $k$ species in phase $m$.  The parameter $a_m$ is the volume-specific area of the reaction interface between the phase $m$ and the electrolyte.
 
 \subsubsection{Electrolyte Species}
 The molar concentration of the electrolyte species in the porous regions of the cathode and electrolyte separator will vary with time due to processes including chemical and electrochemical reactions, species transport, and the change in electrolyte volume fraction due to changing solid phase volume fractions. Conservation of mass and elements are combined to derive the following differential equation for the evolution of the species molar concentrations $C_{k,\,{\rm elyte}}$  (kmol m$_{\rm elyte}^{-3}$):
@@ -114,14 +213,14 @@ where the solid phase volume fraction rates of change are calculated as in eq.~\
  \end{equation}
 where $i_{\rm io}$ is the ionic electrolyte phase current density ${\rm \left(A\,cm^{-2}\right)}$, $i_{\rm Far}$ is the local Faradaic charge transfer current per unit volume ${\rm \left(A\,cm^{-3}\right)}$, and $i_{\rm dl}$ is the local double-layer current per unit volume ${\rm \left(A\,cm^{-3}\right)}$.  $i_{\rm Far}$ and $i_{\rm dl}$ are formulated such that positive current represents net positive charge transferred from the electrolyte phase to the carbon phase. The currents in eq.~\ref{eq:ChargeCons_elyte} are illustrated schematically in Fig. \ref{fig:currentdiagram}. 
 
-\begin{center}
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth/2]{CurrentDiagram.png}
-    \caption{Caption}
-    \label{fig:currentdiagram}
-\end{figure}
-\end{center}
+%\begin{center}
+%\begin{figure}
+%    \centering
+%    \includegraphics[width=\textwidth/2]{CurrentDiagram.png}
+%    \caption{Caption}
+%    \label{fig:currentdiagram}
+%\end{figure}
+%\end{center}
 
 The ionic current in the electrolyte is a function of the species fluxes $N_{k,\,{\rm elyte}}$:
 \begin{equation}\label{eq:i_io}
@@ -135,6 +234,25 @@ where the double layer potential equals the difference between the cathode carbo
 \begin{equation}\label{eq:dPhi_dl}
     \Delta \phi_{\rm dl} = \phi_{\rm ca} - \phi_{\rm elyte},
 \end{equation}
+
+%----------------------------------
+% TABLE OF GENERAL MODEL PARAMETERS
+%----------------------------------
+\begin{table}[h!]
+\begin{center}
+\begin{tabular}{ |cc|cc| } 
+    \hline
+    $n_\mathrm{cat}$ & 20 & $L_\mathrm{cat}$ & $100 ~ \mu \mathrm{m}$ \\
+    $n_\mathrm{sep}$ & 5 & $L_\mathrm{sep}$ & $25 ~ \mu \mathrm{m}$ \\
+    $n_\mathrm{an}$ & 1 & $L_\mathrm{an}$ & $~ \mu \mathrm{m}$ \\
+    $a^\mathrm{o}_\mathrm{carbon}$ & $2 \times 10^{4} ~ \mathrm{m}^{2} ~ \mathrm{m}^{-3}$ & & \\
+    \hline
+\end{tabular}
+\caption{Miscellaneous model parameters}
+\label{table:modelparams}
+\end{center}
+\end{table}
+
 where $\phi_{\rm ca}$ and $\phi_{\rm elyte}$ are the cathode carbon and electrolyte electric potentials, respectively. Conservation of charge and charge neutrality are also applied to teh cathode volume as a whole (electronically conducting cathode + ionically conducting electrolyte phases) to yield:
 \begin{equation}\label{eq:ChargeCons_tot}
     0 = \nabla i_{\rm io} + \nabla i_{\rm el},
@@ -231,168 +349,100 @@ The active carbon surface area is calculated by assuming an initial overall surf
 %===============================================================%
 \section{Results}
 
-Using a common framework while implementing multiple reaction mechanisms allows for simple comparison and exploration of various mechanisms. By doing this sort of comparison between past continuum models, modified versions of continuum models, and atomistic based models, we can learn important information about how modeling can be used in conjunction with experiments to better understand Li-S systems. The results presented here demonstrate the importance of both species thermodynamics as well as kinetic parameters in order to capture the complexities of Li-S cathodes. 
+Using a common framework while implementing multiple reaction mechanisms allows for simple comparison and exploration of various mechanisms. By doing such a comparison between mechanisms derived from those used by past continuum models and mechanisms based on atomistic models, we can learn important information about how modeling can be used in conjunction with experiments to better understand Li-S systems. The results presented here demonstrate the importance of both species thermodynamics as well as kinetic parameters in order to capture the complexities of Li-S cathodes. 
 
-\subsection{Model Validation}
-In order to establish a baseline for reference among the various mechanisms presented  and provide validation against experimental data, we compare the lithiated form of our mechanism with data from \cite{ANDREI2018469} taken at C-rates of 0.1C, 0.5C, and 1.0C. The results can be seen in figure \ref{fig:lithiatedcascadevalidation}. Due to the nature of a sulfur cathode, which involves nucleation and growth, it has been shown that discharge at increasing C-rate alters the manner in which Li$_2$S precipitates in the carbon network \cite{REN2016115}. At low C-rates Li$_2$S tends to form fewer nucleation sites and grow larger. Conversely, at high C-rates Li$_2$S tends to form more nucleation sites and form as more of a film. This will affect both the evolution of solid/electrolyte surface area for both carbon and Li$_2$S as well as the changing porosity of the elctrolyte phase through discharge. In order to capture this C-rate dependence of nucleation density, a semi-empirical function was developed here that relates the applied C-rate to the nucleation density $n_m$ of the solid Li$_2$S in the cathode. This expression is 
-
-\begin{equation}
-    n_m = 6 \times 10^{13} ~ \exp \big( 3.0327\times C \big)
-\end{equation}
-
-where $C$ is the C-rate input into the model file. This provides C-rate dependence through accounting for the physical phenomena involved in nucleation and growth while being computationally tractable.
 
 \begin{center}
-\begin{figure}
+\begin{figure}[b]
     \centering
-    \includegraphics[width=\textwidth]{Figures/Vcell_Andrei_data.pdf}
+    \includegraphics[width=\textwidth]{Figures/Figure3_validation.png}
     \caption{Comparison of the lithiated cascade mechanism and experimental data taken from Andrei \textit{et al} \cite{ANDREI2018469} at 0.1C, 0.5C, and 1C.}
     \label{fig:lithiatedcascadevalidation}
 \end{figure}
 \end{center}
 
-\subsection{Mechanism comparison}
+\subsection{Model Validation}
+Due to the nature of a sulfur cathode, which involves nucleation and growth, it has been shown that discharge at increasing C-rate alters the manner in which Li$_2$S precipitates in the carbon network \cite{REN2016115}. At low C-rates Li$_2$S tends to form fewer nucleation sites and grow larger. Conversely, at high C-rates Li$_2$S tends to form more nucleation sites and form as more of a film. This will have a direct effect on the evolution of surface area for all interfaces as well as the porosity throughout discharge. Both of these effects will potentially act detrimentally on battery performance due to higher overpotentials and transport losses. In order to capture this C-rate dependence of nucleation density, a semi-empirical function was developed here that relates the applied C-rate to the nucleation density $n_m$ of the solid Li$_2$S in the cathode. This expression is 
 
-Figure \ref{fig:mechanismcomparisonvoltage} shows the comparison of discharge voltage for all of the mechanisms implemented. We see that the mechanisms are all relatively close to each other at 0.1C, but quickly diverge at higher C-rates most likely due to kinetic limitations. This highlights one of the most important aspects of modeling sulfur cathodes, which is that both species thermodynamics as well as kinetic parameters are critical to properly model this system on a continuum level. Another feature to notice is between the lithiated and non-lithiated mechanisms, the lithiated mechanism seems to have a smoother transition from the uppper voltage plateau to the lower. This is likely understood by the results shown in figure \ref{fig:mechanismcomparisonconcentration} which shows the species concentrations for each mechanism at 0.1C discharge. When comparing the concentrations in the lithiated mechanism versus the non-lithiated mechanism, while the profiles are similar, they show concentration gradients in the lithiated mechanism compared to the non-lithiated mechanism, which seems to show little or no spatial concentration gradients of the polysulfide species. This presence of concentration gradients may have a smoothing effect on the discharge voltage due to the relationship between polysulfide concentrations and the cell voltage. 
+\begin{equation}\label{eq:li2s_nucl}
+    n_m = 6 \times 10^{13} ~ \exp \big( 3.0327 \times C \big)
+\end{equation}
 
-Another aspect of note, particularly between the lithiated and non-lithiated mechanisms, is although their voltages are very similar, the species profiles are different. This is especially noticeable in the magnitude that the concentration of Li$_2$S$_4$/S$_4^{2-}$ and Li$_2$S$_6$/S$_6^{2-}$ reach as well as the different profile of Li$_2$S$_2$/S$_2^{2-}$. 
+where $C$ is the C-rate input into the model file. This provides C-rate dependence through accounting for the physical phenomena involved in nucleation and growth while being computationally tractable. The structure of \ref{eq:li2s_nucl} is the same for all mechanisms presented here, but the coefficient in the exponential function is $1.8966$ instead of $3.0327$ for the mechanisms based on Assary, \textit{et al} and Kuz'mina, \textit{et al}. 
+
+In order to establish a baseline for reference among the various mechanisms presented  and provide validation against experimental data, we compare the lithiated and non-lithiated forms of our mechanism with data from \cite{ANDREI2018469} taken at C-rates of 0.1C, 0.5C, and 1.0C. The results can be seen in figure \ref{fig:lithiatedcascadevalidation}. Both models are able to capture C-rate dependence of discharge capacity using the same empirical expression of equation \ref{eq:li2s_nucl}. The form using lithiated polysulfides captures the shape and overpotential losses of the upper voltage plateau with increasing C-rate much more closely than the form using non-lithiated polysulfides. The two mechanisms use the same order polysulfides and reactions; however, they use different parameters for species thermodynamics and reaction kinetics. All mechanism parameters for these two forms can be found in table \ref{cascadekineticsandthermo}. It is worth noting that neither form of this mechanism captures the "dip" in voltage around $400 ~ \mathrm{Ah} ~ \mathrm{kg}_\mathrm{sulfur}$ shown in this data from Andrei, \textit{et al} \cite{ANDREI2018469}. Based on other models \cite{Neidhardt_2012} this dip and recovery seems to be associated with polysulfide concentration changes that occur when solid sulfur is consumed then $\mathrm{Li}_2\mathrm{S}$ begins to form. However, there are also other models and data that show little or no "dip" behavior \cite{REN2016115}. Because of this, we feel confident that the mechanism developed in this work captures enough of the features observed in data to provide valuable results and insight into behavior of Li-S batteries.
 
 \begin{center}
-\begin{figure}
+\begin{figure}[b!]
     \centering
-    \includegraphics[width=\textwidth]{Figures/Vcell_mech_comp.pdf}
+    \includegraphics[width=\textwidth]{Figures/Figure4_Mechanism_Comparison.png}
     \caption{Here we are comparing two models based on atomistically determined thermodynamics for intermediate species and two models derived from past continuum level models in the literature. They are being compared at 0.1C, 0.5C, 1C and 1.5C and with a 65\% porous cathode and 25 $\mu$m separator}
     \label{fig:mechanismcomparisonvoltage}
 \end{figure}
 \end{center}
 
-\subsection{Cell design}
+\subsection{Mechanism comparison}
+Figure \ref{fig:mechanismcomparisonvoltage} shows the comparison of discharge voltage for all of the mechanisms implemented at 0.1C, 0.5C, 1C, and 1.5C discharge with a cathode at 65\% initial porosity. The first feature we notice is that the mechanisms based on atomistic modeling show very different overall shape, particularly in the high voltage region. The overpotential losses with increasing C-rate are overpredicted in comparison to the two mechanisms developed in this work, which would indicate kinetic limitations dominating the region of early discharge in particular. This highlights one of the most important aspects of modeling sulfur cathodes, which is that both species thermodynamics as well as kinetic parameters are critical to properly model this system on a continuum level. The second difference of note between the mechanisms developed in this work and those derived from atomistic models is the concavity of the voltage profile in the transition region. Because the shape of Li-S voltage curves seems to be associated with polysulfide concentration profiles, this would indicate a significant enough difference in concentration profiles and dominant species present to affect the shape of the voltage curve. 
+
+As expected from the results of the voltage curves, when examining the polysulfide concentrations in figure \ref{fig:mechanismcomparisonvoltage}, we do see significant differences in concentration profiles and magnitudes. The most significant difference is between the mechanisms of this work and those derived from atomistic models. This seems somewhat intuitive as the voltage shapes differ significantly as well. We see in the mechanisms of this work $\mathrm{Li}_2\mathrm{S}_4$/$\mathrm{S}^{2-}_4$ is the dominant species for much of discharge; however, in the mechanisms derived from atomistic models, $\mathrm{Li}_2\mathrm{S}_4$ reaches no appreciable concentration and is replaced by $\mathrm{Li}_2\mathrm{S}_6$ and $\mathrm{Li}_2\mathrm{S}_2$ as the dominant species for most of discharge. 
+
+Of particular note are the differences between mechanisms that have similar voltage profiles. The two mechanisms of this work have very similar voltage curves, but still have significant differences in concentration profiles throughout discharge. The mechanism that uses lithiated polysulfides predicts higher peak concentration of $\mathrm{Li}_2\mathrm{S}_6$ with lower overall concentration of $\mathrm{Li}_2\mathrm{S}_2$. The opposite is true of the mechanism using non-lithiated polysulfides. Because $\mathrm{Li}_2\mathrm{S}_6$ is considered to have a higher solubility ($\approx$ 6 M \cite{ANDREI2018469}) while $\mathrm{Li}_2\mathrm{S}_2$ is considered to have a negligible solubility, and would almost certainly precipitate out of solution at the concentrations predicted here, when using models to aid Li-S battery design, the mechanism used is absolutely critical when considering longevity. As shown here, two mechanisms could predict similar performance from a power and energy perspective, but predict different outcomes from a cyclability perspective.
 
 \begin{center}
-\begin{figure}
+\begin{figure}[b!]
     \centering
-    \includegraphics[width=\textwidth]{Figures/Vcell_25um_sep.pdf}
-    \caption{Cell voltage for varying porosity at 0.1C, 0.5C, 1C, and 1.5C with a 25 $\mu$m separator. These results agree qualitatively with the literature in that decreasing porosity tends to lead to lower cutoff voltages.}
-    \label{fig:porositystudy25umsep}
+    \includegraphics[width=\textwidth]{Figures/Figure5_PolysulfideMechComparison.pdf}
+    \caption{Here we are comparing lithiated and non-lithiated mechanisms with polysulfide species concentrations over discharge at 1C and time traces of Li+ concentration throughout the cathode as a function of discharge capacity}
+    \label{fig:mechanismcomparisonconc}
 \end{figure}
 \end{center}
 
+Figure \ref{fig:mechanismcomparisonconc} shows concentration profiles of polysulfides for the lithiated and non-lithiated mechanism of this work at 1C and an initial cathode porosity of 65\%. As expected, there are noticeable concentration gradients as a function of distance from the cathode current collector at higher C-rates where transport limitations become more significant. The concentration gradients observed in the lithiated form are more consistent throughout discharge however, while the non-lithiated form shows smaller gradients during the initial stages of discharge with almost no gradient in the concentration of $\mathrm{Li}_2\mathrm{S}_6$. This discrepancy is likely due to the different nature of the role of $\mathrm{Li}^+$ ions in the discharge process of the two mechanisms. In the non-lithiated form, the role of $\mathrm{Li}^+$ ions is only to maintain charge neutrality with the polysulfide anions that are produced through reduction at the carbon/electrolyte interface. Because of this, the reaction rates do not directly depend on the concentration of $\mathrm{Li}^+$ ions. Conversely, in the lithiated form, $\mathrm{Li}^+$ ions are a reactant in the reduction reactions which leads to a direct dependence on $\mathrm{Li}^+$ ion concentration for the production of polysulfides. 
 
-\begin{figure}
+The other observable effect of this different nature of $\mathrm{Li}^+$ ions can be clearly observed in the concentration of $\mathrm{Li}^+$ over the course of discharge. The time traces can be seen in figure \ref{fig:mechanismcomparisonconc} showing the very different behavior. For the non-lithiated mechanism, $\mathrm{Li}^+$ concentration increases then decreases again, but still has a net gain in concentration compared to the initial condition. Because $\mathrm{Li}^+$ is not consumed by the reduction reactions, but stays in the electrolyte until the final step of forming $\mathrm{Li}_2\mathrm{S}$, its concentration will increase as more polysulfides anions are produced. The opposite is true in the case of the lithiated polysulfides. For this form, $\mathrm{Li}^+$ is consumed as polysulfides are reduced leading to a net loss of $\mathrm{Li}^+$ concentration in the electrolyte. 
+
+Considering the difference in predictions of these two mechanisms, in combination with results reported on measuring polysulfide concentrations \textit{in situ} \cite{SAQIB2017266}, which indicate measurement of lithiated polysulfides rather than strictly non-lithiated polysulfides, it may be necessary to consider a mechanism that incorporates lithiated polysulfide species in the electrolyte in order to capture additional behavior of Li-S batteries. Further study of species concentration, in particular $\mathrm{Li}^+$, would provide valuable information to confirming this.
+
+\begin{figure}[b!]
     \centering
-    \includegraphics[width=\textwidth]{Figures/Vcell_10um_sep.pdf}
-    \caption{Cell voltage for varying porosity at 0.1C, 0.5C, 1C, and 1.5C with a 10 $\mu$m separator. This is a rather thin separator compared to what is commonly used; however, because gravimetric capacity is one of the benefits of Li-S cells, if thinner separators could be used it's one way to trim "dead" material. We see here though that this could affect performance at lower C-rates than with thicker separators.}
-    \label{fig:porositystudy10umsep}
+    \includegraphics[width=\textwidth]{Figures/Figure6_CellDesign_DischargeProfiles.pdf}
+    \caption{Comparing three different electrolyte/sulfur ratios at 0.1C, 0.5C, 1C, and 1.5C and the species concentrations for each E/S ratio at 0.1C}
+    \label{fig:E_S_ratio_comp}
 \end{figure}
+\subsection{Cell design}
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/Ck_Li2S4.pdf}
-    \caption{Comparison of Li2S4 concentration at 0.1C, 0.5C, 1C, and 1.5C with a 25 $\mu$m separator and 65\% cathode porosity.}
-    \label{fig:speciescomparisonLi2S4}
-\end{figure}
+Based on the results so far in comparing the various mechanisms implemented, we selected the lithiated mechanism to explore the effects of design and operation on a cell using three different electrolyte/sulfur ratios. These were performed at 4 $\mu$L mg$^{-1}_\mathrm{sulfur}$, 3 $\mu$L mg$^{-1}_\mathrm{sulfur}$, and 2 $\mu$L mg$^{-1}_\mathrm{sulfur}$. The motivation for choosing these values was with the growing move to increase specific capacity of Li-S cells by reducing the electrolyte/sulfur (E/S) ratio, current state of the art batteries need 3 $\mu$L mg$^{-1}_\mathrm{sulfur}$ in order to achieve energy density goals \cite{Kang2019}. 
 
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/Ck_Li2S2.pdf}
-    \caption{Comparison of Li2S2 concentration at 0.1C, 0.5C, 1C, and 1.5C with a 25 $\mu$m separator and 65\% cathode porosity}
-    \label{fig:speciescomparisonLi2S2}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/C_Lipdch1.0C.pdf}
-    \caption{Li+ concentration at varying porosity, 1C discharge, and a 10 $\mu$m separator. This shows with a thin separator the Li+ concentration is depleted.}
-    \label{fig:Liconc10umsep}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/C_Lip_25um_dch1.0C.pdf}
-    \caption{Li+ concentration in the cathode at varying porosity, 1C discharge, and a 25 $\mu$m separator. With a thicker separator (and more electrolyte volume that it provides) the Li+ isn't fully depleted as with the thinner separator.}
-    \label{fig:Liconc25umsep}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/Ragone_65pct25um.pdf}
-    \caption{Ragone plot showing energy density vs. power density of a 65\% porous cathode with a 25 $\mu$m separator}
-    \label{fig:ragone25umsep}
-\end{figure}
-
-\begin{figure}
-    \centering
-    \includegraphics[width=\textwidth]{Figures/Ragone_65pct10um.pdf}
-    \caption{Ragone plot showing energy density vs. power density of a 65\% porous cathode with a 10 $\mu$m separator}
-    \label{fig:ragone10umsep}
-\end{figure}
-
-\newpage
-
-Figures to include:
-\begin{itemize}
-        \item Verification, Validation, and comparison
-        \begin{itemize}
-        \item Fig S1 Bessler mech and geom. voltage vs. capacity
-        \item \sout{Fig 1 Lithiated V vs. cap at 0.1, 0.5, 1.0C compared to Andrei data}
-        \item \sout{Fig 2 Lithiated, non-lithiated, Assary, and Kuzmina V vs. cap (sub-figs for a few C-rates)}
-        \item \sout{Fig 3 Lithiated, non-lithiated, Assary, and Kuzmina Conc. vs. cap (sub-figs for mech)}
-        \item Compare surface area models?
-    \end{itemize}
-    \item Single model results - Lithiated cascade
-    \begin{itemize}
-        \item \sout{Fig 4 Voltage profile for varying cathode porosity at 25 $\mu$m separator}
-        \item \sout{Fig 5 voltage profile for varying cathode porosity at 10 $\mu$m separator}
-        \item \sout{Fig 6 species profiles as function of C-rate}
-        \item Fig 7 species gradient for prominent species as function of C-rate
-        \item \sout{Fig 8 Comparison of Li+ concentration gradient for varying porosity at 10 $\mu$m separator}
-        \item \sout{Fig 9 Ragone plot for 65\% porous cathode and 25 $\mu$m separator}
-        \item \sout{Fig 10 Ragone plot for 65\% porous cathode and 10 $\mu$m separator}
-    \end{itemize}
-\end{itemize}
-
-
-
-%\begin{center}
-%\begin{figure}
+%\begin{figure}[t]
 %    \centering
-%    \includegraphics[width=\textwidth]{}
-%    \caption{Validation of the lithiated cascade %mechanism versus experimental data.}
-%    \label{fig:lithiatedcascadevalidation}
+%    \includegraphics[width=\textwidth]{Figures/Figure7_Ragone_Li2S2.pdf}
+%    \caption{Ragone plot showing energy density vs. power density of cells with electrolyte/sulfur ratios of 4 $\mu$L mg$^{-1}$, 3 $\mu$L mg$^{-1}$, and 2 $\mu$L mg$^{-1}$ comparing max concentration reached of Li$_2$S$_2$}
+%    \label{fig:ragoneLi2S2}
 %\end{figure}
-%\end{center}
 
-%Validate:
-%\begin{itemize}
-%    \item As a function of C-rate (charge-discharge)
-%    \item Versus Porter's electrolyte data.
-%    \item Sensitivity plots.
-%\end{itemize}
+\begin{figure}[b!]
+    \centering
+    \includegraphics[width=\textwidth]{Figures/Figure8_Ragone_Li2S4.pdf}
+    \caption{Ragone plot showing energy density vs. power density of cells with electrolyte/sulfur ratios of 4 $\mu$L mg$^{-1}$, 3 $\mu$L mg$^{-1}$, and 2 $\mu$L mg$^{-1}$ comparing max concentration reached of Li$_2$S$_4$}
+    \label{fig:ragoneLi2S4}
+\end{figure}
 
-%\subsection{The Importance of Physical Chemistry %Validation Data}
-%\begin{itemize}
-%    \item Compare the three mechanisms)
-%\end{itemize}
+Figure \ref{fig:E_S_ratio_comp} shows voltage profiles for the three E/S ratios used at 0.1C, 0.5C, 1C, and 1.5C discharge. As expected with decreasing E/S ratio, discharge capacity decreases even at moderately low C-rates. The loss in predicted performances with a $3 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}$ E/S ratio cell predicting a capacity around $900 ~ \mathrm{Ah} ~ \mathrm{kg}^{-1}_\mathrm{sulfur}$ at 0.1C discharge. This is a loss of approximately $500 ~ \mathrm{Ah} ~ \mathrm{kg}^{-1}_\mathrm{sulfur}$ compared to the results presented in figure \ref{fig:mechanismcomparisonvoltage} which were run at an E/S ratio of approximately $5.8 ~ \mu \mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$. The performance loss with decreasing E/S ratio does not seem to be associated with transport losses as the spatial gradients of polysulfide concentrations in the cathode do not seem to increase significantly. However, it is possibly associated with overall concentration levels. Figure \ref{fig:E_S_ratio_comp} also shows the polysulfide concentration profiles for decreasing E/S ratio at 0.1C discharge. Although the gradients do not seem to increase, the magnitude of concentrations increases for almost all polysulfide species. This, in conjunction with the full consumption of dissolved sulfur, $\mathrm{S}_8(\mathrm{e})$, may be contributing to the loss in performance. 
 
+In addition to losses in power and energy performance, decreasing E/S ratio increases cyclability concerns as we see in figure \ref{fig:E_S_ratio_comp} the concentration of $\mathrm{Li}_2\mathrm{S}_4$ nearly doubles, exceeding its saturation limit \cite{ANDREI2018469}, when the E/S ratio is halved from $4 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$ to $2 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$. 
 
-%\subsection{The Impact of Species Solubility on Li-S %Battery Design}
-%\subsubsection{Optimizing Power and Energy Density}
-%\begin{itemize}
-%    \item     Ragone plot
-%\end{itemize}
-%\subsubsection{Cation Selective Membranes for %Polysulfide Shuttle Mitigation}
-%\begin{itemize}
-%    \item    Put a ``screening efficiency" at the %cathode/separator boundary.  Observe impact on local %concentrations.  This may need a bit more work--the %model doesn't currently track shuttling current--so %we'll need to decide if it is worth including in this %paper, or saving for later.
-%\end{itemize}
+The results of decreasing E/S ratio in an effort to leverage the high theoretical capacity of sulfur cathodes show how important it is to consider the balance of performance and longevity. Figure \ref{fig:ragoneLi2S4} plots energy versus power density from 0.1C to 1.5C discharge while incorporating max concentration reached of $\mathrm{Li}_2\mathrm{S}_4$ at $4 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$, $3 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$, and $2 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$. For the extreme case of $2 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$, $\mathrm{Li}_2\mathrm{S}_4$ exceeds its solubility limit even as low as 0.1C discharge. At the opposite end, at the same E/S ratio when approaching 1C discharge, $\mathrm{Li}_2\mathrm{S}_4$ does not exceed its saturation limit, but due to the performance of the cell at higher C-rates, the energy density achieved is a fraction of that achieved at the same C-rates with an E/S ratio of $4 ~ \mu\mathrm{L} ~ \mathrm{mg}^{-1}_\mathrm{sulfur}$. 
 
-
-
-
+Using a model like this as a tool to help explore the design and operation spaces of Li-S batteries could help optimize the structure of batteries for different desired applications. At the same time, further work understanding the intermediate processes in Li-S batteries would help better inform continuum level models to provide more such optimization. 
 
 %===============================================================%
 %                      CONCLUSIONS
 %===============================================================%
 \section{Conclusions}
+
+In this paper, we have presented a model for Li-S cells which incorporates the software \textsc{Cantera} into our modeling framework, allowing for extremely simple comparison of various mechanisms that might be proposed for Li-S chemistry. This is highly beneficial due to the high complexity of Li-S batteries and can provide insight into what aspects of a mechanism are necessary to capture key features seen on a performance level of Li-S batteries. 
+
+In exercising the model with various mechanisms, we have discovered the importance of kinetic data for reactions in addition to thermodynamic data. We believe it would be of great benefit to incorporate more data taken from atomistic models as well as experiments to improve continuum level models. As physical models develop further, they can provide valuable feedback on cell design by allowing for quick exploration of structural impacts.
 
 
 \newpage
